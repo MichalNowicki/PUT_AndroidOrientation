@@ -1,35 +1,27 @@
 package org.dg.main;
 
-import java.io.File;
-import java.io.FileNotFoundException;
-import java.io.FileOutputStream;
-import java.io.IOException;
-import java.net.InetAddress;
-import java.net.UnknownHostException;
+import java.util.Timer;
+import java.util.TimerTask;
+import java.lang.Math;
 
 import org.dg.inertialSensors.AHRSModule;
+import org.dg.inertialSensors.InertialSensors;
 import org.dg.main.R;
+
+
 
 import android.app.Activity;
 import android.content.Context;
-import android.hardware.Camera;
-import android.hardware.Camera.PictureCallback;
-import android.hardware.Camera.ShutterCallback;
 import android.os.AsyncTask;
 import android.os.Bundle;
-import android.os.Environment;
+import android.os.Handler;
 import android.util.Log;
 import android.view.Menu;
 import android.view.MenuItem;
-import android.view.SurfaceView;
 import android.view.View;
-import android.view.Window;
-import android.view.WindowManager;
 import android.view.View.OnClickListener;
-import android.view.ViewGroup.LayoutParams;
 import android.widget.Button;
-import android.widget.FrameLayout;
-import android.widget.Toast;
+import android.widget.TextView;
 
 public class MainActivity extends Activity {
     private static final String    TAG = "Main::Activity";
@@ -45,14 +37,17 @@ public class MainActivity extends Activity {
     private MenuItem               mItemPreviewGray;
     private MenuItem               mItemPreviewCanny;
     private MenuItem               mItemPreviewFeatures;
-
-
- 
-	Button buttonClick;
 	
- 
+	// Inertial sensors
+	android.hardware.SensorManager sensorManager;
+	org.dg.inertialSensors.InertialSensors inertialSensors;
+	boolean intertialStarted = false;
+	  
 
-
+	//
+	public Handler mHandler;
+	private Timer fuseTimer = new Timer();
+	
     public MainActivity() {
         Log.i(TAG, "Instantiated new " + this.getClass());
     }
@@ -61,28 +56,30 @@ public class MainActivity extends Activity {
     @Override
     public void onCreate(Bundle savedInstanceState) {
     	super.onCreate(savedInstanceState);
-		
-//    	ctx = this;
-//		act = this;
-//		requestWindowFeature(Window.FEATURE_NO_TITLE);
-//		getWindow().addFlags(WindowManager.LayoutParams.FLAG_FULLSCREEN);
-
 		setContentView(R.layout.main_surface_view);
 		
+		// GUI stuff
+        mHandler = new Handler();
 		
-		buttonClick = (Button) findViewById(R.id.buttonClick);
+		// Activate sensor manager
+		sensorManager = (android.hardware.SensorManager) getSystemService(Context.SENSOR_SERVICE);
+	    inertialSensors = new org.dg.inertialSensors.InertialSensors(sensorManager);
 		
+	    
+	    // Start button
+	    Button buttonClick = (Button) findViewById(R.id.buttonClick);
 		buttonClick.setOnClickListener(new OnClickListener() {
 			public void onClick(View v) {
-				AHRSModule ahrs = new AHRSModule();
-				(new Thread(ahrs)).start();
+				// Let's start !
+				inertialSensors.start();
+				intertialStarted = true;
+				
+				// wait for one second until gyroscope and magnetometer/accelerometer
+		        // data is initialised then scedule the complementary filter task
+		        fuseTimer.scheduleAtFixedRate(new calculateFusedOrientationTask(),
+		                                      1000, (long) 30.0f);
 			}
 		});
-		
-		
-	
-		
-		
     }
 
     @Override
@@ -95,6 +92,16 @@ public class MainActivity extends Activity {
         return true;
     }
 
+    
+    @Override
+   	protected void onStop() {
+   		if (intertialStarted == true)
+   		{
+   			inertialSensors.stop();
+   			intertialStarted = false;
+   		}
+    	super.onStop();
+   	}
     
     @Override
 	protected void onResume() {
@@ -123,4 +130,43 @@ public class MainActivity extends Activity {
 
         return true;
     }
+    
+    
+    class calculateFusedOrientationTask extends TimerTask {
+    	 public void run() {
+    		  // update sensor output in GUI
+             mHandler.post(updateOreintationDisplayTask);
+    	 }
+    }
+    
+    public void updateOreintationDisplay() {
+    	
+    	// Set GUI
+    	float [] estimate = inertialSensors.getCurrentOrientationEstimate();
+    	Log.i("GUI", "quat : "
+				+ Float.toString(estimate[0]) + " "
+				+ Float.toString(estimate[1]) + " "
+				+ Float.toString(estimate[2]) + " "
+				+ Float.toString(estimate[3])+ "\n");
+    	
+    	float rotZ = (float) (Math.atan2( 2*(estimate[0]*estimate[1]+estimate[2]*estimate[3]), (1 - 2*(estimate[1]*estimate[1] + estimate[2] * estimate[2]))) * 180.0/3.1415265);
+    	float rotY = (float) (Math.asin(2 *(estimate[0]*estimate[2]-estimate[3]*estimate[1])) * 180.0/3.1415265);
+    	float rotX = (float) (Math.atan2( 2*(estimate[0]*estimate[3]+estimate[1]*estimate[2]), (1 - 2*(estimate[2]*estimate[2] + estimate[3] * estimate[3]))) * 180.0/3.1415265);
+    	
+    	 TextView textView = (TextView) findViewById(R.id.TextViewZ);
+    	 textView.setText(String.format("\t%.2f", rotZ) + " deg");
+    	 
+    	 textView = (TextView) findViewById(R.id.TextViewY);
+    	 textView.setText(String.format("\t%.2f", rotY) + " deg");
+    	 
+    	 textView = (TextView) findViewById(R.id.TextViewX);
+    	 textView.setText(String.format("\t%.2f", rotX) + " deg");
+    }
+    
+
+	private Runnable updateOreintationDisplayTask = new Runnable() {
+		public void run() {
+			updateOreintationDisplay();
+		}
+	};
 }
