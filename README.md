@@ -4,9 +4,11 @@ PUT_AndroidOrientation
 The EKF-based quaternion orientation estimation for Android devices using accelerometer, magnetometer and gyroscope (more precise than Android estimation). The repository contains free simple examples estimating the orientation of the Android smartphone:
 - implementation in NDK using Eigen library (OrientEstimation_EKF_EIGEN)
 - implementation in NDK using OpenCV library (OrientEstimation_EKF_OpenCV)
-- implementation of AKEF (!) in NDK using Eigen library (OrientEstimation_AEKF_EIGEN) [preferred]
+- implementation of AKEF (!) in NDK using Eigen library (OrientEstimation_AEKF) [recommended!]
 
-Screenshots: [1](https://dl.dropboxusercontent.com/u/2559505/IEEESensors/OrientationEigen.png) [2](https://dl.dropboxusercontent.com/u/2559505/IEEESensors/OrientationEigen2.png)
+Screenshots:
+- OrientEstimation_EKF_EIGEN: [1](https://dl.dropboxusercontent.com/u/2559505/IEEESensors/OrientationEigen.png) [2](https://dl.dropboxusercontent.com/u/2559505/IEEESensors/OrientationEigen2.png)
+- OrientEstimation_AEKF: [1](https://dl.dropboxusercontent.com/u/2559505/IEEESensors/OrientationAEKF.png) [2](https://dl.dropboxusercontent.com/u/2559505/IEEESensors/OrientationAEKF2.png)
 
 The code is published under the MiT license, so feel free to use it for your own purposes.
 
